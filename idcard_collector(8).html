@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>身份证信息收集工具</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:"Microsoft YaHei","PingFang SC",sans-serif; background:#f0f2f5; padding:12px; }
+  .wrap { max-width:760px; margin:0 auto; }
+  h1 { font-size:18px; text-align:center; margin-bottom:10px; color:#333; }
+  .card { background:#fff; border-radius:10px; padding:14px; margin-bottom:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .card h2 { font-size:14px; color:#1890ff; margin-bottom:8px; }
+  textarea { width:100%; height:130px; border:1px solid #d9d9d9; border-radius:6px; padding:8px; font-size:13px; resize:vertical; outline:none; }
+  textarea:focus { border-color:#1890ff; }
+  .row { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; align-items:center; }
+  button { border:none; border-radius:6px; padding:7px 14px; font-size:13px; cursor:pointer; }
+  .btn-primary { background:#1890ff; color:#fff; }
+  .btn-primary:hover { background:#40a9ff; }
+  .btn-green { background:#52c41a; color:#fff; }
+  .btn-green:hover { background:#73d13d; }
+  .btn-red { background:#ff4d4f; color:#fff; }
+  .btn-gray { background:#8c8c8c; color:#fff; }
+  .btn-orange { background:#fa8c16; color:#fff; }
+  label.chk { font-size:12px; color:#666; display:flex; align-items:center; gap:4px; }
+  .stat { font-size:12px; color:#888; margin-left:auto; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th, td { border-bottom:1px solid #f0f0f0; padding:6px 4px; text-align:center; }
+  th { background:#fafafa; color:#555; }
+  td .mini { padding:3px 8px; font-size:11px; border-radius:4px; }
+  .tag-used { color:#bbb; }
+  .tag-ok { color:#52c41a; }
+  .result-box { background:#f6ffed; border:1px solid #b7eb8f; border-radius:8px; padding:12px; margin-top:8px; display:none; }
+  .result-box p { font-size:15px; margin:5px 0; }
+  .copy-mini { background:#e6f7ff; color:#1890ff; border:1px solid #91d5ff; padding:2px 8px; font-size:11px; border-radius:4px; cursor:pointer; margin-left:6px; }
+  .hint { font-size:11px; color:#999; margin-top:6px; line-height:1.6; }
+  .modal-mask { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:99; }
+  .modal { background:#fff; border-radius:10px; padding:16px; width:90%; max-width:420px; }
+  .modal h3 { font-size:14px; margin-bottom:8px; color:#333; }
+  .modal input { width:100%; padding:7px; border:1px solid #d9d9d9; border-radius:6px; font-size:12px; margin-bottom:8px; }
+  .empty { text-align:center; color:#bbb; padding:16px 0; font-size:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📋 身份证信息收集工具</h1>
+
+  <!-- 提取区 -->
+  <div class="card">
+    <h2>① 粘贴聊天记录，提取身份证</h2>
+    <textarea id="chatInput" placeholder="把聊天记录粘贴到这里，支持格式如：&#10;张三 110101199001011234&#10;姓名：李四 身份证号：110101199202023456"></textarea>
+    <div class="row">
+      <button class="btn-primary" onclick="extractInfo()">🔍 提取身份证信息</button>
+      <label class="chk"><input type="checkbox" id="skipMinor" checked> 不保存未满18岁</label>
+      <span class="stat" id="extractStat"></span>
+    </div>
+    <div class="hint" id="previewHint"></div>
+  </div>
+
+  <!-- 后台库 -->
+  <div class="card">
+    <h2>② 后台信息库</h2>
+    <div class="row" style="margin:0 0 8px 0;">
+      <button class="btn-green" onclick="getOne()">🎲 获取一条（用后即失效）</button>
+      <button class="btn-orange" onclick="exportData()">💾 导出备份</button>
+      <button class="btn-gray" onclick="document.getElementById('importFile').click()">📥 导入备份</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+      <button class="btn-red" onclick="clearAll()">🗑 清空</button>
+      <span class="stat" id="poolStat"></span>
+    </div>
+    <div id="resultBox" class="result-box">
+      <p><b>姓名：</b><span id="rName"></span><button class="copy-mini" onclick="copyText('rName')">复制姓名</button></p>
+      <p><b>身份证：</b><span id="rId"></span><button class="copy-mini" onclick="copyText('rId')">复制号码</button></p>
+      <div class="row" style="margin-top:8px;">
+        <button class="btn-orange mini" onclick="makeShareLink()">🔗 生成分享链接</button>
+      </div>
+      <div id="shareArea" style="display:none; margin-top:8px;">
+        <input type="text" id="shareLink" readonly style="width:100%; padding:6px; font-size:11px; border:1px solid #ffd591; border-radius:6px;">
+        <div class="row"><button class="btn-primary mini" onclick="copyShare()">📋 复制链接</button></div>
+      </div>
+      <p class="hint">⚠️ 此条已标记失效，不会再被获取到。信息仅保存在本机浏览器。</p>
+    </div>
+    <table id="infoTable">
+      <thead><tr><th>#</th><th>姓名</th><th>身份证号</th><th>年龄</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody id="infoBody"></tbody>
+    </table>
+    <div class="empty" id="emptyTip">暂无数据，请先提取</div>
+  </div>
+  <p class="hint" style="text-align:center;">🔐 数据仅存储在本机浏览器（localStorage），清除浏览器数据会丢失，请定期导出备份。</p>
+</div>
+
+<script>
+const KEY = 'idcard_pool_v1';
+let pool = JSON.parse(localStorage.getItem(KEY) || '[]');
+
+function save(){ localStorage.setItem(KEY, JSON.stringify(pool)); render(); }
+
+// ========== 身份证校验 ==========
+const W = [7,9,10,5,8,4,2,1,6,3,7,9,10,5,8,4,2];
+const C = '10X98765432';
+function validID(id){
+  if(!/^\d{17}[\dXx]$/.test(id)) return false;
+  let s = 0;
+  for(let i=0;i<17;i++) s += +id[i]*W[i];
+  return C[s%11] === id[17].toUpperCase();
+}
+function getAge(id){
+  const b = id.substr(6,8);
+  const d = new Date(b.substr(0,4), +b.substr(4,2)-1, b.substr(6,2));
+  const now = new Date();
+  let age = now.getFullYear()-d.getFullYear();
+  const md = (now.getMonth()+1)*100+now.getDate(), bd = +b.substr(4,4);
+  if(md < bd) age--;
+  return age;
+}
+
+// ========== 提取 ==========
+function extractInfo(){
+  const text = document.getElementById('chatInput').value;
+  if(!text.trim()){ alert('请先粘贴聊天记录'); return; }
+  const skipMinor = document.getElementById('skipMinor').checked;
+  const idRe = /\b\d{17}[\dXx]\b/g;
+  const found = [];
+  let m;
+  while((m = idRe.exec(text)) !== null){
+    const id = m[0];
+    if(!validID(id)) continue;
+    // 向前找姓名：姓名：X / 名字[:：]? / X 的身份证 / X 空格+ID
+    const before = text.slice(Math.max(0, m.index-30), m.index);
+    let name = '';
+    let nm = before.match(/姓名\s*[:：]?\s*([\u4e00-\u9fa5]{2,4})\s*$/)
+          || before.match(/([\u4e00-\u9fa5]{2,4})\s*的?(?:身份[证号]?|证件号)/
+          || before.match(/([^\s，。：:]{2,8})\s+$/);
+    if(nm) name = nm[1].replace(/^[^\u4e00-\u9fa5]+/,'');
+    if(!name) name = '未识别';
+    found.push({name, id});
+  }
+  // 去重（库内已有的不再添加）
+  let added = 0, skipped = 0, minor = 0;
+  const exist = new Set(pool.map(r=>r.id));
+  const dup = new Set();
+  found.forEach(f=>{
+    if(exist.has(f.id) || dup.has(f.id)){ skipped++; return; }
+    const age = getAge(f.id);
+    if(skipMinor && age < 18){ minor++; return; }
+    dup.add(f.id);
+    pool.push({name:f.name, id:f.id, age, used:false, time:Date.now()});
+    added++;
+  });
+  save();
+  document.getElementById('extractStat').textContent =
+    `提取${found.length}条 | 新增${added} 跳过${skipped} 未成年${minor}`;
+  if(found.length === 0) document.getElementById('previewHint').textContent = '未识别到有效身份证号（需18位且校验位正确）';
+  else document.getElementById('previewHint').textContent = '';
+}
+
+// ========== 获取一条 ==========
+let current = null;
+function getOne(){
+  const avail = pool.filter(r=>!r.used);
+  if(!avail.length){ alert('没有可获取的信息了'); return; }
+  current = avail[Math.floor(Math.random()*avail.length)];
+  current.used = true;
+  save();
+  document.getElementById('resultBox').style.display = 'block';
+  document.getElementById('rName').textContent = current.name;
+  document.getElementById('rId').textContent = current.id;
+  document.getElementById('shareArea').style.display = 'none';
+}
+
+// ========== 复制 ==========
+function copyText(elId){
+  const t = document.getElementById(elId).textContent;
+  navigator.clipboard.writeText(t).then(()=>toast('已复制：'+t));
+}
+function copyShare(){
+  navigator.clipboard.writeText(document.getElementById('shareLink').value).then(()=>toast('分享链接已复制'));
+}
+function toast(msg){
+  const d = document.createElement('div');
+  d.textContent = msg;
+  d.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;z-index:999;';
+  document.body.appendChild(d);
+  setTimeout(()=>d.remove(), 1500);
+}
+
+// ========== 分享链接（自包含 data URI，无需服务器） ==========
+function makeShareLink(){
+  if(!current) return;
+  const viewer = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>身份证信息</title>'
+    + '<style>body{font-family:sans-serif;background:#f0f2f5;display:flex;justify-content:center;padding:30px}'
+    + '.c{background:#fff;border-radius:12px;padding:24px;max-width:360px;width:100%;box-shadow:0 2px 10px rgba(0,0,0,.1)}'
+    + 'p{font-size:17px;margin:12px 0}button{margin:4px;padding:8px 16px;border:none;border-radius:6px;background:#1890ff;color:#fff;font-size:14px;cursor:pointer}</style></head><body>'
+    + '<div class="c"><h3>📋 身份证信息</h3>'
+    + '<p><b>姓名：</b>'+current.name+'</p><p><b>身份证：</b>'+current.id+'</p>'
+    + '<button onclick="navigator.clipboard.writeText(\''+current.name+'\')">复制姓名</button>'
+    + '<button onclick="navigator.clipboard.writeText(\''+current.id+'\')">复制号码</button></div></body></html>';
+  const b64 = btoa(unescape(encodeURIComponent(viewer)));
+  const link = 'data:text/html;base64,' + b64;
+  document.getElementById('shareArea').style.display = 'block';
+  document.getElementById('shareLink').value = link;
+}
+
+// ========== 表格渲染 ==========
+function render(){
+  const tb = document.getElementById('infoBody');
+  tb.innerHTML = '';
+  pool.forEach((r,i)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i+1}</td><td>${r.name}</td><td>${r.id}</td><td>${r.age}</td>`
+      + `<td>${r.used?'<span class="tag-used">已失效</span>':'<span class="tag-ok">可用</span>'}</td>`
+      + `<td>${r.used?'':'<button class="btn-red mini" onclick="delOne('+i+')">删除</button>'}</td>`;
+    tb.appendChild(tr);
+  });
+  const left = pool.filter(r=>!r.used).length;
+  document.getElementById('poolStat').textContent = `共${pool.length}条 | 剩余可获取${left}条`;
+  document.getElementById('emptyTip').style.display = pool.length? 'none':'block';
+}
+
+function delOne(i){
+  if(confirm('删除「'+pool[i].name+'」？')){ pool.splice(i,1); save(); }
+}
+function clearAll(){
+  if(confirm('确定清空全部数据？建议先导出备份。')){ pool=[]; save(); }
+}
+
+// ========== 备份 ==========
+function exportData(){
+  const blob = new Blob([JSON.stringify(pool,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '身份证库备份_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+}
+function importData(e){
+  const f = e.target.files[0];
+  if(!f) return;
+  const rd = new FileReader();
+  rd.onload = ()=>{
+    try{
+      const data = JSON.parse(rd.result);
+      if(!Array.isArray(data)) throw 0;
+      const exist = new Set(pool.map(r=>r.id));
+      let n = 0;
+      data.forEach(r=>{ if(r.id && !exist.has(r.id)){ pool.push(r); n++; } });
+      save();
+      alert('导入完成，新增 '+n+' 条');
+    }catch{ alert('文件格式错误'); }
+  };
+  rd.readAsText(f);
+  e.target.value = '';
+}
+
+render();
+</script>
+</body>
+</html>
