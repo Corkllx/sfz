@@ -136,10 +136,11 @@
 
     <div id="paneShort">
       <label>查看页地址（托管后填写，只需设置一次）</label>
-      <input type="text" id="viewerUrl" placeholder="例如：https://你的用户名.github.io/v/">
+      <input type="text" id="viewerUrl" placeholder="填 viewer.html 的完整网址，或直接粘贴一条分享链接（自动识别）">
       <div class="row">
         <button class="btn-green" onclick="saveViewerUrl()">💾 保存地址</button>
-        <button class="btn-orange" onclick="downloadViewer()">⬇️ 下载查看页（拿去托管）</button>
+        <button class="btn-blue" onclick="checkViewer()">🔍 检测查看页</button>
+        <button class="btn-orange" onclick="downloadViewer()">⬇️ 下载查看页</button>
       </div>
       <div class="guide">
         <b>📖 托管教程（约3分钟，免费，只需一次）：</b><br>
@@ -147,7 +148,9 @@
         2️⃣ 注册 <b>github.com</b> → 新建仓库 → 上传 viewer.html；<br>
         3️⃣ 仓库 Settings → Pages → 选择 main 分支保存；<br>
         4️⃣ 稍等几分钟，得到地址 <b>https://你的用户名.github.io/仓库名/viewer.html</b>；<br>
-        5️⃣ 把该地址粘贴到上方输入框并保存，之后链接只有 <b>60~80 字符</b>！
+        5️⃣ 粘贴到上方输入框 → 点「保存地址」→ 点「🔍 检测查看页」确认正常；<br>
+        6️⃣ 之后每次分享链接只有 <b>60~80 字符</b>，且已修复"有概率打不开"的问题！<br>
+        📌 打开链接显示404？说明地址填错或文件没传成功，用「检测」按钮排查。
       </div>
     </div>
 
@@ -352,16 +355,36 @@ function switchMode(m){
   document.getElementById('paneLong').classList.toggle('hide',m!=='long');
   if(lastName&&lastId) buildLink(lastName,lastId);
 }
-function saveViewerUrl(){
-  var u=document.getElementById('viewerUrl').value.trim();
-  if(!u){ toast('请先填写查看页地址'); return; }
-  if(!/^https?:\/\//.test(u)) u='https://'+u;
-  if(!/viewer\.html?$/i.test(u)){
+function normalizeViewerUrl(u){
+  u=u.trim();
+  // 如果粘贴的是完整分享链接，剥掉数据部分只留查看页地址
+  u=u.split('#')[0].split('?')[0];
+  if(!/^https?:\/\//i.test(u)) u='https://'+u;
+  if(!/\.html?$/i.test(u)){
     if(u.slice(-1)!=='/') u+='/';
     u+='viewer.html';
   }
+  return u;
+}
+function saveViewerUrl(){
+  var raw=document.getElementById('viewerUrl').value;
+  if(!raw.trim()){ toast('请先填写查看页地址'); return; }
+  var u=normalizeViewerUrl(raw);
   localStorage.setItem('viewer_url',u);
+  document.getElementById('viewerUrl').value=u;
   toast('查看页地址已保存');
+}
+function checkViewer(){
+  var raw=document.getElementById('viewerUrl').value;
+  if(!raw.trim()){ toast('请先填写查看页地址'); return; }
+  var u=normalizeViewerUrl(raw);
+  toast('正在检测查看页…');
+  fetch(u).then(function(r){
+    if(r.ok){ toast('✅ 查看页正常，可以使用了'); }
+    else{ toast('❌ 返回'+r.status+'：文件不存在，检查文件名/路径'); }
+  }).catch(function(){
+    toast('⚠️ 无法访问：可能未开通Pages或地址有误，请用浏览器手动打开测试');
+  });
 }
 function clearShareInput(){
   document.getElementById('inName').value='';
@@ -381,7 +404,7 @@ function buildLink(n,i){
   if(mode==='short'){
     var base=localStorage.getItem('viewer_url');
     if(!base){ toast('⚠️ 请先在短链接模式下填写并保存查看页地址'); switchMode('short'); return; }
-    link=base+'#'+enc(n+'|'+i);
+    link=base+'?d='+enc(n+'|'+i);
   } else {
     link=buildLongLink(n,i);
   }
@@ -416,28 +439,54 @@ function downloadViewer(){
     +'p{font-size:17px;word-break:break-all;text-align:left;margin:12px 0}'
     +'button{width:100%;padding:11px;margin:5px 0;border:0;border-radius:8px;color:#fff;font-size:15px;cursor:pointer}'
     +'.b1{background:#3b82f6}.b2{background:#22c55e}.b3{background:#ef4444}'
-    +'.e{color:#c00;font-size:14px;text-align:center}</style></head><body>'
+    +'.e{color:#c00;font-size:14px;text-align:center;line-height:1.8}'
+    +'input{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:12px;'
+    +'word-break:break-all;box-sizing:border-box;font-family:monospace;margin:8px 0;outline:none}'
+    +'input:focus{border-color:#3b82f6}</style></head><body>'
     +'<div class="c" id="box"><p>加载中…</p></div>'
-    +'<script>function dec(s){s=s.replace(/-/g,"+").replace(/_/g,"/");'
-    +'return decodeURIComponent(escape(atob(s)))}'
-    +'try{var d=dec(location.hash.slice(1)).split("|");var n=d[0],i=d[1];'
+    +'<scr'+'ipt>'
+    +'function pad(s){while(s.length%4)s+="=";return s}'
+    +'function dec(s){'
+    +'s=decodeURIComponent(s.replace(/-/g,"+").replace(/_/g,"/"));'
+    +'return decodeURIComponent(escape(atob(pad(s))))}'
+    +'function getData(){'
+    +'var m=location.search.match(/[?&]d=([^&]+)/);'
+    +'if(m)return m[1];'
+    +'if(location.hash&&location.hash.length>1)return location.hash.slice(1);'
+    +'return ""}'
+    +'function show(n,i){'
     +'window._d=[n,i,n+" "+i];'
     +'document.getElementById("box").innerHTML="<h3>🪪 证件信息</h3>"'
-    +'+"<p>姓名：<b>"+n+"<\/b><\/p><p>身份证号：<b>"+i+"<\/b><\/p>"'
-    +'+"<button class=b1 onclick=cp(0)>📋 复制姓名<\/button>"'
-    +'+"<button class=b2 onclick=cp(1)>📋 复制身份证号<\/button>"'
-    +'+"<button class=b3 onclick=cp(2)>📋 复制全部<\/button>";'
-    +'}catch(e){document.getElementById("box").innerHTML="<p class=e>链接无效或已损坏<\/p>"}'
+    +'+"<p>姓名：<b>"+n+"<\\/b><\\/p><p>身份证号：<b>"+i+"<\\/b><\\/p>"'
+    +'+"<button class=b1 onclick=cp(0)>📋 复制姓名<\\/button>"'
+    +'+"<button class=b2 onclick=cp(1)>📋 复制身份证号<\\/button>"'
+    +'+"<button class=b3 onclick=cp(2)>📋 复制全部<\\/button>";}'
+    +'function fail(){'
+    +'document.getElementById("box").innerHTML="<p class=e>⚠️ 链接数据缺失或损坏<br>'
+    +'可能是转发过程中被截断<br><\\/p>"'
+    +'+"<input id=fix placeholder=请粘贴完整分享链接><\\/input>"'
+    +'+"<button class=b1 onclick=fixIt()>恢复显示<\\/button>";}'
+    +'function fixIt(){'
+    +'var u=document.getElementById("fix").value.trim();'
+    +'var m=u.match(/[?&]d=([^&#]+)/);'
+    +'var h=u.match(/#(.+)$/);'
+    +'var s=m?m[1]:(h?h[1]:"");'
+    +'if(!s){alert("链接中没有找到数据");return}'
+    +'try{var d=dec(s).split("|");show(d[0],d[1]);}catch(e){alert("数据仍不完整，请重新索取链接")}}'
+    +'var raw=getData();'
+    +'if(!raw){fail()}'
+    +'else{try{var d=dec(raw).split("|");'
+    +'if(d.length<2||!d[0]||!d[1])throw 0;show(d[0],d[1]);}catch(e){fail()}}'
     +'function cp(k){var t=window._d[k];'
     +'if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){ok(t)})}else{ok(t)}}'
     +'function ok(t){alert("✅ 已复制："+t)}'
-    +'<\/script></body></html>';
+    +'<\/scr'+'ipt></body></html>';
   var blob=new Blob([v],{type:'text/html;charset=utf-8'});
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download='viewer.html';
   a.click();
-  toast('viewer.html 已下载，请按教程托管');
+  toast('viewer.html 已下载（新版：更稳、带错误恢复），请重新上传托管');
 }
 
 // ================== 历史记录 ==================
