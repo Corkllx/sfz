@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>身份证分享工具</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+         background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+         min-height:100vh; padding:16px 12px; }
+  .wrap { max-width:560px; margin:0 auto; }
+  .header { text-align:center; color:#fff; margin-bottom:16px; }
+  .header .logo { font-size:36px; }
+  .header h1 { font-size:20px; margin:4px 0 2px; }
+  .header p { font-size:12px; opacity:.85; }
+  .card { background:#fff; border-radius:14px; padding:16px; margin-bottom:14px;
+          box-shadow:0 4px 18px rgba(0,0,0,.15); }
+  .card h2 { font-size:15px; color:#333; margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+  .badge { width:22px; height:22px; border-radius:7px; color:#fff; font-size:12px;
+           display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .b1 { background:linear-gradient(135deg,#60a5fa,#3b82f6); }
+  .b2 { background:linear-gradient(135deg,#34d399,#10b981); }
+  .b3 { background:linear-gradient(135deg,#a78bfa,#8b5cf6); }
+  .b4 { background:linear-gradient(135deg,#fb923c,#f97316); }
+  label { display:block; font-size:13px; color:#555; margin:10px 0 5px; font-weight:600; }
+  input[type=text], textarea.ta { width:100%; padding:10px 12px; border:2px solid #e5e7eb; border-radius:10px;
+                     font-size:13px; outline:none; transition:border-color .2s; font-family:inherit; }
+  input[type=text]:focus, textarea.ta:focus { border-color:#8b5cf6; }
+  textarea.ta { min-height:100px; resize:vertical; line-height:1.6; }
+  .row { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; align-items:center; }
+  button { border:none; border-radius:10px; padding:10px 16px; font-size:13px; font-weight:600;
+           cursor:pointer; transition:transform .15s, box-shadow .15s; color:#fff; }
+  button:hover { transform:translateY(-1px); }
+  .btn-blue { background:linear-gradient(135deg,#60a5fa,#3b82f6); box-shadow:0 3px 10px rgba(59,130,246,.35); }
+  .btn-green { background:linear-gradient(135deg,#4ade80,#22c55e); box-shadow:0 3px 10px rgba(34,197,94,.35); }
+  .btn-orange { background:linear-gradient(135deg,#fb923c,#f97316); box-shadow:0 3px 10px rgba(249,115,22,.35); }
+  .btn-purple { background:linear-gradient(135deg,#a78bfa,#8b5cf6); box-shadow:0 3px 10px rgba(139,92,246,.35); }
+  .btn-red { background:linear-gradient(135deg,#f87171,#ef4444); box-shadow:0 3px 10px rgba(239,68,68,.3); }
+  .btn-gray { background:#9ca3af; }
+  .mode-tabs { display:flex; background:#f3f4f6; border-radius:10px; padding:4px; margin-bottom:12px; }
+  .mode-tabs div { flex:1; text-align:center; padding:8px; border-radius:8px; font-size:13px;
+                   color:#6b7280; cursor:pointer; font-weight:600; transition:all .2s; }
+  .mode-tabs div.on { background:#fff; color:#8b5cf6; box-shadow:0 2px 8px rgba(0,0,0,.1); }
+  .hide { display:none !important; }
+  .link-box { background:#f8fafc; border:2px dashed #c7d2fe; border-radius:10px; padding:10px;
+              font-family:monospace; font-size:11px; word-break:break-all; color:#4338ca;
+              margin-top:12px; max-height:90px; overflow-y:auto; }
+  .len-tip { font-size:11px; color:#16a34a; margin-top:6px; font-weight:600; }
+  .guide { background:#fffbeb; border-left:3px solid #f59e0b; border-radius:0 8px 8px 0;
+           padding:10px 12px; font-size:12px; color:#92400e; line-height:1.8; margin-top:10px; }
+  .guide b { color:#78350f; }
+  .stat { font-size:12px; color:#9ca3af; margin-left:auto; }
+  .chk { display:flex; align-items:center; gap:5px; font-size:12px; color:#6b7280; cursor:pointer;
+         background:#f3f4f6; padding:6px 10px; border-radius:8px; font-weight:400; margin:0; }
+  /* 信息库列表 */
+  .pool-item { display:flex; justify-content:space-between; align-items:center;
+               padding:8px 2px; border-bottom:1px solid #f3f4f6; font-size:12px; }
+  .pool-item .pid { font-family:monospace; color:#6d28d9; }
+  .pool-item.used { opacity:.45; }
+  .pstat { font-size:10px; padding:2px 8px; border-radius:10px; font-weight:600; }
+  .p-ok { background:#dcfce7; color:#16a34a; }
+  .p-used { background:#fee2e2; color:#dc2626; }
+  .mini { padding:5px 10px; font-size:11px; border-radius:7px; }
+  .got-box { background:linear-gradient(135deg,#f0fdf4,#dcfce7); border:1.5px solid #86efac;
+             border-radius:12px; padding:14px; margin-top:12px; display:none; }
+  .got-box p { font-size:15px; margin:5px 0; color:#14532d; }
+  .empty { text-align:center; color:#cbd5e1; padding:12px; font-size:12px; }
+  .history-item { display:flex; justify-content:space-between; align-items:center;
+                  padding:8px 4px; border-bottom:1px solid #f3f4f6; font-size:12px; }
+  .history-item .id { font-family:monospace; color:#6d28d9; }
+  .toast { position:fixed; top:20px; left:50%; transform:translate(-50%,-80px);
+           background:rgba(17,24,39,.92); color:#fff; padding:10px 22px; border-radius:24px;
+           font-size:13px; z-index:99; transition:transform .3s; box-shadow:0 6px 20px rgba(0,0,0,.3); }
+  .toast.show { transform:translate(-50%,0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="logo">🔗</div>
+    <h1>身份证分享工具</h1>
+    <p>聊天提取 · 用后即焚 · 短链接分享</p>
+  </div>
+
+  <!-- ① 提取 -->
+  <div class="card">
+    <h2><span class="badge b1">1</span>提取聊天记录中的身份证</h2>
+    <textarea class="ta" id="chatInput" placeholder="把聊天记录粘贴到这里，支持：&#10;张三 110101199001011234&#10;姓名：李四 身份证号：110101199202023456"></textarea>
+    <div class="row">
+      <button class="btn-blue" onclick="extractInfo()">🔍 提取信息</button>
+      <label class="chk"><input type="checkbox" id="skipMinor" checked> 仅保存满18岁</label>
+      <span class="stat" id="extractStat"></span>
+    </div>
+  </div>
+
+  <!-- ② 信息库 -->
+  <div class="card">
+    <h2><span class="badge b2">2</span>信息库（获取后即失效）</h2>
+    <div class="row" style="margin-top:0;">
+      <button class="btn-green" onclick="getOne()">🎲 随机获取一条</button>
+      <button class="btn-gray mini" onclick="exportPool()">💾 导出</button>
+      <button class="btn-gray mini" onclick="document.getElementById('importFile').click()">📥 导入</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importPool(event)">
+      <button class="btn-red mini" onclick="clearPool()">🗑 清空</button>
+      <span class="stat" id="poolStat"></span>
+    </div>
+    <div id="gotBox" class="got-box">
+      <p><b>姓名：</b><span id="gotName"></span></p>
+      <p><b>身份证：</b><span id="gotId"></span></p>
+      <div class="row" style="margin-top:8px;">
+        <button class="btn-purple mini" onclick="fillShare()">📤 分享此条</button>
+        <button class="btn-blue mini" onclick="copyText(document.getElementById('gotName').textContent+' '+document.getElementById('gotId').textContent,'已复制姓名+身份证号')">📋 复制</button>
+      </div>
+      <p style="font-size:11px;color:#166534;margin:6px 0 0;">⚠️ 此条已失效，不会再被获取到。</p>
+    </div>
+    <div id="poolList" style="margin-top:8px;"></div>
+  </div>
+
+  <!-- ③ 分享 -->
+  <div class="card">
+    <h2><span class="badge b3">3</span>生成分享链接</h2>
+    <label>姓名</label>
+    <input type="text" id="inName" placeholder="例如：张三">
+    <label>身份证号</label>
+    <input type="text" id="inId" maxlength="18" placeholder="18位身份证号">
+    <div class="row">
+      <button class="btn-blue" onclick="makeLink()">⚡ 生成分享链接</button>
+      <button class="btn-gray" onclick="clearShareInput()">清空</button>
+    </div>
+
+    <div class="mode-tabs" style="margin-top:14px;">
+      <div id="tabShort" class="on" onclick="switchMode('short')">🚀 短链接模式（推荐）</div>
+      <div id="tabLong" onclick="switchMode('long')">📦 免托管模式</div>
+    </div>
+
+    <div id="paneShort">
+      <label>查看页地址（托管后填写，只需设置一次）</label>
+      <input type="text" id="viewerUrl" placeholder="填 viewer.html 的完整网址，或直接粘贴一条分享链接（自动识别）">
+      <div class="row">
+        <button class="btn-green" onclick="saveViewerUrl()">💾 保存地址</button>
+        <button class="btn-blue" onclick="checkViewer()">🔍 检测查看页</button>
+        <button class="btn-orange" onclick="downloadViewer()">⬇️ 下载查看页</button>
+      </div>
+      <div class="guide">
+        <b>📖 托管教程（约3分钟，免费，只需一次）：</b><br>
+        1️⃣ 点上方「下载查看页」得到 viewer.html；<br>
+        2️⃣ 注册 <b>github.com</b> → 新建仓库 → 上传 viewer.html；<br>
+        3️⃣ 仓库 Settings → Pages → 选择 main 分支保存；<br>
+        4️⃣ 稍等几分钟，得到地址 <b>https://你的用户名.github.io/仓库名/viewer.html</b>；<br>
+        5️⃣ 粘贴到上方输入框 → 点「保存地址」→ 点「🔍 检测查看页」确认正常；<br>
+        6️⃣ 之后每次分享链接只有 <b>60~80 字符</b>，且已修复"有概率打不开"的问题！<br>
+        📌 打开链接显示404？说明地址填错或文件没传成功，用「检测」按钮排查。
+      </div>
+    </div>
+
+    <div id="paneLong" class="hide">
+      <div class="guide" style="background:#eff6ff;border-color:#3b82f6;color:#1e40af;">
+        <b>📦 免托管模式：</b>不需要任何服务器，链接自带查看页面。<br>
+        缺点是链接较长（约900+字符），微信等软件中可能显示为纯文本，需要对方复制到浏览器打开。
+      </div>
+    </div>
+
+    <div id="noResult" class="empty">填写信息后点「生成分享链接」</div>
+    <div id="hasResult" class="hide">
+      <div class="link-box" id="linkBox"></div>
+      <div class="len-tip" id="lenTip"></div>
+      <div class="row">
+        <button class="btn-purple" onclick="copyResult()">📋 复制链接</button>
+        <button class="btn-green" onclick="testLink()">👀 预览效果</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 历史 -->
+  <div class="card" id="historyCard" style="display:none;">
+    <h2><span class="badge b4">🕘</span>最近分享记录</h2>
+    <div id="historyList"></div>
+  </div>
+
+  <p style="text-align:center;font-size:11px;color:rgba(255,255,255,.7);line-height:1.8;">
+    🔐 信息只保存在本机浏览器并编码进链接本身 · 请只发给确有需要的人
+  </p>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ================== 基础工具 ==================
+function toast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm);
+  t._tm = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+}
+function copyText(text, msg){
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function(){ toast(msg); });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    toast(msg);
+  }
+}
+function enc(s){
+  return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+var W=[7,9,10,5,8,4,2,1,6,3,7,9,10,5,8,4,2], CC='10X98765432';
+function validId(id){
+  if(!/^\d{17}[\dXx]$/.test(id)) return false;
+  var s=0;
+  for(var i=0;i<17;i++) s += Number(id[i])*W[i];
+  return CC[s%11] === id[17].toUpperCase();
+}
+function getAge(id){
+  var y=+id.substr(6,4), mo=+id.substr(10,2), d=+id.substr(12,2);
+  var now=new Date(), age=now.getFullYear()-y;
+  if((now.getMonth()+1)*100+now.getDate() < mo*100+d) age--;
+  return age;
+}
+
+// ================== 信息库 ==================
+var POOL_KEY='share_pool_v1';
+var pool=[];
+try{ pool=JSON.parse(localStorage.getItem(POOL_KEY)||'[]'); }catch(e){ pool=[]; }
+function savePool(){ localStorage.setItem(POOL_KEY, JSON.stringify(pool)); renderPool(); }
+
+function extractInfo(){
+  var text=document.getElementById('chatInput').value;
+  if(!text.trim()){ toast('请先粘贴聊天记录'); return; }
+  var skipMinor=document.getElementById('skipMinor').checked;
+  var idRe=/\d{17}[\dXx]/g, m, found=[];
+  while((m=idRe.exec(text))!==null){
+    var id=m[0];
+    if(!validId(id)) continue;
+    var before=text.slice(Math.max(0,m.index-30), m.index);
+    var name='';
+    var nm=before.match(/姓名\s*[:：]?\s*([\u4e00-\u9fa5]{2,4})/)
+        || before.match(/([\u4e00-\u9fa5]{2,4})\s*的?(?:身份证|身份|证件号)/)
+        || before.match(/([\u4e00-\u9fa5]{2,4})\s*$/)
+        || before.match(/([\u4e00-\u9fa5]{2,4})\s+$/);
+    if(nm) name=nm[1].replace(/^[^\u4e00-\u9fa5]+/,'');
+    if(!name||name.length<2) name='未识别';
+    found.push({name:name, id:id});
+  }
+  var exist={}, dup={};
+  pool.forEach(function(r){ exist[r.id]=1; });
+  var added=0, skipped=0, minor=0;
+  found.forEach(function(f){
+    if(exist[f.id]||dup[f.id]){ skipped++; return; }
+    var age=getAge(f.id);
+    if(skipMinor&&age<18){ minor++; return; }
+    dup[f.id]=1;
+    pool.push({name:f.name, id:f.id, age:age, used:false, time:Date.now()});
+    added++;
+  });
+  savePool();
+  document.getElementById('extractStat').textContent='识别'+found.length+'条 | 新增'+added+' 跳过'+skipped+' 未成年'+minor;
+  if(found.length===0) toast('未识别到有效身份证号');
+  else toast('提取完成：新增 '+added+' 条');
+}
+
+function getOne(){
+  var avail=pool.filter(function(r){return !r.used;});
+  if(!avail.length){ toast('没有可获取的信息了'); return; }
+  var cur=avail[Math.floor(Math.random()*avail.length)];
+  cur.used=true;
+  savePool();
+  document.getElementById('gotBox').style.display='block';
+  document.getElementById('gotName').textContent=cur.name;
+  document.getElementById('gotId').textContent=cur.id;
+  toast('已获取：'+cur.name+'（已失效）');
+}
+
+function fillShare(){
+  document.getElementById('inName').value=document.getElementById('gotName').textContent;
+  document.getElementById('inId').value=document.getElementById('gotId').textContent;
+  document.getElementById('inName').scrollIntoView({behavior:'smooth', block:'center'});
+  toast('已填入分享表单，点「生成分享链接」即可');
+}
+
+function renderPool(){
+  var list=document.getElementById('poolList');
+  if(!pool.length){
+    list.innerHTML='<div class="empty">暂无数据，请先在上方提取</div>';
+  } else {
+    list.innerHTML=pool.map(function(r,idx){
+      return '<div class="pool-item'+(r.used?' used':'')+'">'
+        +'<div><b>'+r.name+'</b> <span class="pid">'+r.id+'</span> <span style="color:#999;">'+r.age+'岁</span></div>'
+        +'<div style="display:flex;align-items:center;gap:6px;">'
+        +'<span class="pstat '+(r.used?'p-used':'p-ok')+'">'+(r.used?'已失效':'可用')+'</span>'
+        +(!r.used?'<button class="btn-purple mini" onclick="sharePoolItem('+idx+')">🔗分享</button>':'')
+        +'<button class="btn-red mini" onclick="delPool('+idx+')">删</button>'
+        +'</div></div>';
+    }).join('');
+  }
+  var left=pool.filter(function(r){return !r.used;}).length;
+  document.getElementById('poolStat').textContent='共'+pool.length+'条 | 剩余'+left+'条';
+}
+
+function sharePoolItem(idx){
+  var r=pool[idx];
+  document.getElementById('inName').value=r.name;
+  document.getElementById('inId').value=r.id;
+  makeLink();
+}
+function delPool(idx){
+  if(confirm('删除「'+pool[idx].name+'」？')){ pool.splice(idx,1); savePool(); }
+}
+function clearPool(){
+  if(!pool.length){ toast('信息库已是空的'); return; }
+  if(confirm('确定清空全部 '+pool.length+' 条？建议先导出备份。')){ pool=[]; savePool(); }
+}
+function exportPool(){
+  if(!pool.length){ toast('没有数据可导出'); return; }
+  var blob=new Blob([JSON.stringify(pool,null,2)],{type:'application/json'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='信息库备份_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+}
+function importPool(e){
+  var f=e.target.files[0];
+  if(!f) return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    try{
+      var data=JSON.parse(rd.result);
+      if(!Array.isArray(data)) throw 0;
+      var exist={};
+      pool.forEach(function(r){ exist[r.id]=1; });
+      var n=0;
+      data.forEach(function(r){ if(r.id&&!exist[r.id]){ pool.push(r); n++; } });
+      savePool();
+      toast('导入完成，新增 '+n+' 条');
+    }catch(err){ toast('文件格式错误'); }
+  };
+  rd.readAsText(f);
+  e.target.value='';
+}
+
+// ================== 分享链接 ==================
+var mode='short', currentLink='';
+var lastName='', lastId='';
+var history=JSON.parse(localStorage.getItem('share_history')||'[]');
+var viewerUrlSaved=localStorage.getItem('viewer_url')||'';
+if(viewerUrlSaved) document.getElementById('viewerUrl').value=viewerUrlSaved;
+
+function switchMode(m){
+  mode=m;
+  document.getElementById('tabShort').className=m==='short'?'on':'';
+  document.getElementById('tabLong').className=m==='long'?'on':'';
+  document.getElementById('paneShort').classList.toggle('hide',m!=='short');
+  document.getElementById('paneLong').classList.toggle('hide',m!=='long');
+  if(lastName&&lastId) buildLink(lastName,lastId);
+}
+function normalizeViewerUrl(u){
+  u=u.trim();
+  // 如果粘贴的是完整分享链接，剥掉数据部分只留查看页地址
+  u=u.split('#')[0].split('?')[0];
+  if(!/^https?:\/\//i.test(u)) u='https://'+u;
+  if(!/\.html?$/i.test(u)){
+    if(u.slice(-1)!=='/') u+='/';
+    u+='viewer.html';
+  }
+  return u;
+}
+function saveViewerUrl(){
+  var raw=document.getElementById('viewerUrl').value;
+  if(!raw.trim()){ toast('请先填写查看页地址'); return; }
+  var u=normalizeViewerUrl(raw);
+  localStorage.setItem('viewer_url',u);
+  document.getElementById('viewerUrl').value=u;
+  toast('查看页地址已保存');
+}
+function checkViewer(){
+  var raw=document.getElementById('viewerUrl').value;
+  if(!raw.trim()){ toast('请先填写查看页地址'); return; }
+  var u=normalizeViewerUrl(raw);
+  toast('正在检测查看页…');
+  fetch(u).then(function(r){
+    if(r.ok){ toast('✅ 查看页正常，可以使用了'); }
+    else{ toast('❌ 返回'+r.status+'：文件不存在，检查文件名/路径'); }
+  }).catch(function(){
+    toast('⚠️ 无法访问：可能未开通Pages或地址有误，请用浏览器手动打开测试');
+  });
+}
+function clearShareInput(){
+  document.getElementById('inName').value='';
+  document.getElementById('inId').value='';
+}
+function makeLink(){
+  var n=document.getElementById('inName').value.trim();
+  var i=document.getElementById('inId').value.trim();
+  if(!n){ toast('请填写姓名'); return; }
+  if(!validId(i)){ toast('身份证号无效（需18位且校验正确）'); return; }
+  lastName=n; lastId=i;
+  buildLink(n,i);
+  addHistory(n,i);
+}
+function buildLink(n,i){
+  var link;
+  if(mode==='short'){
+    var base=localStorage.getItem('viewer_url');
+    if(!base){ toast('⚠️ 请先在短链接模式下填写并保存查看页地址'); switchMode('short'); return; }
+    link=base+'?d='+enc(n+'|'+i);
+  } else {
+    link=buildLongLink(n,i);
+  }
+  currentLink=link;
+  document.getElementById('noResult').classList.add('hide');
+  document.getElementById('hasResult').classList.remove('hide');
+  document.getElementById('linkBox').textContent=link;
+  document.getElementById('lenTip').textContent='✅ 链接长度：'+link.length+' 个字符'+
+    (mode==='short'?'（短链接）':'（较长，若被聊天软件拦截，请让对方复制到浏览器打开）');
+  copyText(link,'链接已生成并复制，可直接粘贴发送');
+}
+function buildLongLink(n,i){
+  var v='<meta charset=utf-8><style>body{font-family:sans-serif;text-align:center;padding:28px}'
+    +'p{word-break:break-all}button{margin:4px;padding:9px 14px;border:0;border-radius:7px;background:#3b82f6;color:#fff}'
+    +'</style><h3>🪪 身份证信息</h3>'
+    +'<p>姓名：<b>'+n+'</b></p><p>身份证号：<b>'+i+'</b></p>'
+    +'<button onclick=cp(0)>复制姓名</button><button onclick=cp(1)>复制身份证号</button><button onclick=cp(2)>复制全部</button>'
+    +'<script>d=["'+n+'","'+i+'","'+n+' '+i+'"];'
+    +'function cp(k){t=d[k];navigator.clipboard&&navigator.clipboard.writeText(t)?'
+    +'navigator.clipboard.writeText(t).then(()=>alert("✅ 已复制")):prompt("复制以下内容：",t)}'
+    +'<\/script>';
+  return 'data:text/html;base64,'+btoa(unescape(encodeURIComponent(v)));
+}
+function copyResult(){ copyText(currentLink,'链接已复制'); }
+function testLink(){ window.open(currentLink,'_blank'); }
+
+function downloadViewer(){
+  var v='<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">'
+    +'<meta name="viewport" content="width=device-width,initial-scale=1"><title>证件信息查看</title>'
+    +'<style>body{font-family:sans-serif;background:#eef1f5;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center}'
+    +'.c{background:#fff;padding:26px 30px;border-radius:14px;box-shadow:0 2px 12px #ccc;max-width:360px;width:86%;text-align:center}'
+    +'p{font-size:17px;word-break:break-all;text-align:left;margin:12px 0}'
+    +'button{width:100%;padding:11px;margin:5px 0;border:0;border-radius:8px;color:#fff;font-size:15px;cursor:pointer}'
+    +'.b1{background:#3b82f6}.b2{background:#22c55e}.b3{background:#ef4444}'
+    +'.e{color:#c00;font-size:14px;text-align:center;line-height:1.8}'
+    +'input{width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:12px;'
+    +'word-break:break-all;box-sizing:border-box;font-family:monospace;margin:8px 0;outline:none}'
+    +'input:focus{border-color:#3b82f6}</style></head><body>'
+    +'<div class="c" id="box"><p>加载中…</p></div>'
+    +'<scr'+'ipt>'
+    +'function pad(s){while(s.length%4)s+="=";return s}'
+    +'function dec(s){'
+    +'s=decodeURIComponent(s.replace(/-/g,"+").replace(/_/g,"/"));'
+    +'return decodeURIComponent(escape(atob(pad(s))))}'
+    +'function getData(){'
+    +'var m=location.search.match(/[?&]d=([^&]+)/);'
+    +'if(m)return m[1];'
+    +'if(location.hash&&location.hash.length>1)return location.hash.slice(1);'
+    +'return ""}'
+    +'function show(n,i){'
+    +'window._d=[n,i,n+" "+i];'
+    +'document.getElementById("box").innerHTML="<h3>🪪 证件信息</h3>"'
+    +'+"<p>姓名：<b>"+n+"<\\/b><\\/p><p>身份证号：<b>"+i+"<\\/b><\\/p>"'
+    +'+"<button class=b1 onclick=cp(0)>📋 复制姓名<\\/button>"'
+    +'+"<button class=b2 onclick=cp(1)>📋 复制身份证号<\\/button>"'
+    +'+"<button class=b3 onclick=cp(2)>📋 复制全部<\\/button>";}'
+    +'function fail(){'
+    +'document.getElementById("box").innerHTML="<p class=e>⚠️ 链接数据缺失或损坏<br>'
+    +'可能是转发过程中被截断<br><\\/p>"'
+    +'+"<input id=fix placeholder=请粘贴完整分享链接><\\/input>"'
+    +'+"<button class=b1 onclick=fixIt()>恢复显示<\\/button>";}'
+    +'function fixIt(){'
+    +'var u=document.getElementById("fix").value.trim();'
+    +'var m=u.match(/[?&]d=([^&#]+)/);'
+    +'var h=u.match(/#(.+)$/);'
+    +'var s=m?m[1]:(h?h[1]:"");'
+    +'if(!s){alert("链接中没有找到数据");return}'
+    +'try{var d=dec(s).split("|");show(d[0],d[1]);}catch(e){alert("数据仍不完整，请重新索取链接")}}'
+    +'var raw=getData();'
+    +'if(!raw){fail()}'
+    +'else{try{var d=dec(raw).split("|");'
+    +'if(d.length<2||!d[0]||!d[1])throw 0;show(d[0],d[1]);}catch(e){fail()}}'
+    +'function cp(k){var t=window._d[k];'
+    +'if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){ok(t)})}else{ok(t)}}'
+    +'function ok(t){alert("✅ 已复制："+t)}'
+    +'<\/scr'+'ipt></body></html>';
+  var blob=new Blob([v],{type:'text/html;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='viewer.html';
+  a.click();
+  toast('viewer.html 已下载（新版：更稳、带错误恢复），请重新上传托管');
+}
+
+// ================== 历史记录 ==================
+function addHistory(n,i){
+  history.unshift({n:n,i:i,t:Date.now()});
+  history=history.slice(0,8);
+  localStorage.setItem('share_history',JSON.stringify(history));
+  renderHistory();
+}
+function renderHistory(){
+  var c=document.getElementById('historyCard');
+  if(!history.length){ c.style.display='none'; return; }
+  c.style.display='block';
+  document.getElementById('historyList').innerHTML=history.map(function(h,idx){
+    return '<div class="history-item"><div><b>'+h.n+'</b> <span class="id">'+h.i+'</span></div>'
+      +'<div style="display:flex;gap:6px;">'
+      +'<button class="btn-blue mini" onclick="reshare('+idx+')">再次分享</button>'
+      +'<button class="btn-gray mini" onclick="copyText(\''+h.n+' '+h.i+'\',\'已复制姓名+身份证号\')">复制</button>'
+      +'</div></div>';
+  }).join('');
+}
+function reshare(idx){
+  var h=history[idx];
+  document.getElementById('inName').value=h.n;
+  document.getElementById('inId').value=h.i;
+  makeLink();
+}
+
+renderPool();
+renderHistory();
+</script>
+</body>
+</html>
